@@ -12,6 +12,7 @@ int main(int argc, char ** argv) {
     else {
         kdt.readPoints();
     }
+    kdt.build();
 
     return 0;
 }

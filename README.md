@@ -1,4 +1,4 @@
 QKDT
 ====
 
-KD-tree with GUI by QT
+KD-tree with GUI by Parlin Yu, using Qt

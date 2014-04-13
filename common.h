@@ -45,4 +45,8 @@
 #define READ_MODE FILE_READ_MODE
 #endif
 
+#ifndef EPSILON
+#define EPSILON 1e-6
+#endif
+
 #endif
