@@ -1,5 +1,5 @@
 CC=g++
-DEBUG_FLAGS= #-DDEBUG_LEVEL=LEVEL_DEBUG
+DEBUG_FLAGS= -DDEBUG
 RELEASE_FLAGS= #-DDEBUG_LEVEL=LEVEL_RELEASE
 
 ifeq ($(VERSION), DEBUG)
@@ -9,7 +9,7 @@ else
 	OPT=-O2
 endif
 
-CFLAGS=-g -Wall -std=c++0x $(VERSION_FLAGS) -DBASE_THRESHOLD=10
+CFLAGS=-g -Wall -std=c++0x $(VERSION_FLAGS)
 LIB=#-lopencv_core -lopencv_highgui -lopencv_imgproc -lopencv_nonfree -lopencv_legacy
 SRC=main.cpp
 OBJ=kd_tree.o
