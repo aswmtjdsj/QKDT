@@ -12,7 +12,12 @@ int main(int argc, char ** argv) {
     else {
         kdt.readPoints();
     }
+    cout << "Point Set Read!" << endl;
     kdt.build();
+    cout << "KD-tree built!" << endl;
+
+    cout << "Test Begin!" << endl;
+    kdt.search_test();
 
     return 0;
 }

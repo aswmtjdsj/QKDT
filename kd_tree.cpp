@@ -56,6 +56,7 @@ void KD_Tree::readPointsFromFile() {
         string file_name;
         cout << "Input the name of data file>";
         cin >> file_name;
+        file_name = "./data/" + file_name;
         FILE * fp = fopen(file_name.c_str(), "r");
         if(fp != NULL) {
             fscanf(fp, " %d", &number);
@@ -103,17 +104,22 @@ void KD_Tree::readPointsFromCMD() {
 }
 
 bool cmp_x(KD_Point<double> p, KD_Point<double> q) {
-    return p.x > q.x;
+    return p.x < q.x;
 }
 
 bool cmp_y(KD_Point<double> p, KD_Point<double> q) {
-    return p.y > q.y;
+    return p.y < q.y;
 }
 
 void KD_Tree::build() {
+    clock_t start = clock(), end;
+
     root = buildTree(0, point_set.size() - 1, 0, tl, br);
     root->tl = tl;
     root->br = br;
+
+    end = clock();
+    cout << "KD-tree build time: " << (end - start) / 1000. << "ms." << endl;
 }
 
 Node * KD_Tree::buildTree(int lp, int rp, int depth, KD_Point<double> &left_top, KD_Point<double> & right_bottom) {
@@ -122,9 +128,19 @@ Node * KD_Tree::buildTree(int lp, int rp, int depth, KD_Point<double> &left_top,
      * rp denotes right pointer in the array
      * depth denotes the depth of the tree
      */
+#ifdef DEBUG
+    printf("lp: %d, rp: %d\n", lp, rp);
+    cout << "depth: " << depth << endl;
+    printf("left_top & right_bottom>\n");
+    left_top.print();
+    right_bottom.print();
+#endif
 
     if(lp < rp) {
         int m = (lp + rp) / 2;
+#ifdef DEBUG
+    cout << "Find Median!" << endl;
+#endif
         if(depth % 2 == 0) { // even, split into left and right, based on x-cor
             find_median(lp, rp, lp, rp-lp, cmp_x); // 4th param should be offset, so that st_index+offset==end_index, not number of elements in the selected range
         }
@@ -156,7 +172,13 @@ Node * KD_Tree::buildTree(int lp, int rp, int depth, KD_Point<double> &left_top,
             exit(1);
         }*/
 
+#ifdef DEBUG
+        cout << "kaka" << endl; 
+#endif
         Node * cur = new Node(point_set[m]);
+#ifdef DEBUG
+        cout << "biubiu" << endl; 
+#endif
 
         KD_Point<double> split[2];
         if(depth%2==0) {
@@ -216,12 +238,21 @@ Node * KD_Tree::buildTree(int lp, int rp, int depth, KD_Point<double> &left_top,
 
 void KD_Tree::find_median(const int & lp, const int & rp, const int &index, const int &n, bool (cmp)(KD_Point<double>, KD_Point<double>)) {
 
+#ifdef DEBUG
+    printf("FIND lp:%d, rp:%d\n", lp, rp);
+    printf("MEDIAN %d\n", index + n / 2);
+    if(rp - lp == 1) {
+        for(int i = lp; i <= rp; i++) {
+            point_set[i].print();
+        }
+    }
+#endif
     if(lp < rp) {
         int m = rand()%(rp-lp+1) + lp;
         swap(point_set[m], point_set[rp]); // random swap
         int j = lp;
         for(int i = lp; i < rp; i++) {
-            if(!(cmp(point_set[i], point_set[rp]))) {
+            if((cmp(point_set[i], point_set[rp]))) { // using "<=" cannot deal with points having same coors
                 swap(point_set[i], point_set[j]);
                 j++;
             }
@@ -329,17 +360,23 @@ void KD_Tree::search_test() {
     vector< KD_Point<double> > ans;
 
     clock_t start = clock(), end;
-    ans = search(p, q);
+    // for 1000 times
+    for(int i = 0; i < 1000; i++) {
+        ans = search(p, q);
+    }
     end = clock();
     cout << "KD-tree query time: " << (end - start) / 1000. << "ms." << endl;
 
     // brute force query
     start = clock();
     vector< KD_Point<double> > test_ans;
-    for(int i = 0; i < number; i++) {
-        if(p.x <= point_set[i].x  && point_set[i].x <= q.x &&
-                p.y <= point_set[i].y && point_set[i].y <= q.y) {
-            test_ans.push_back(point_set[i]);
+    for(int i = 0; i < 1000; i++) {
+        vector< KD_Point<double> > test_ans;
+        for(int i = 0; i < number; i++) {
+            if(p.x <= point_set[i].x  && point_set[i].x <= q.x &&
+                    p.y <= point_set[i].y && point_set[i].y <= q.y) {
+                test_ans.push_back(point_set[i]);
+            }
         }
     }
     end = clock();
@@ -352,26 +389,19 @@ void KD_Tree::search_test() {
         printf("Wrong Size: s %d b %d\n", n, m);
     }
 
+    sort(ans.begin(), ans.end(), cmp_x);
+    sort(test_ans.begin(), test_ans.end(), cmp_x);
     for(int i = 0; i < n; i++) {
-        bool mark = false;
-        for(int j = 0; j < m; j++) {
-            if(ans[i].x == test_ans[j].x && ans[i].y == test_ans[j].y) {
-                mark = true;
-
-                /*printf("ans[%d] : test_ans[%d]: ", i, j);
-                ans[i].print();
-                test_ans[j].print();*/
-
-                break;
-            }
-        }
-        if(!mark) {
+        if(ans[i].x != test_ans[i].x || ans[i].y != test_ans[i].y) {
             printf("Wrong!\n");
             printf("ans[%d]: ", i);
             ans[i].print();
+            printf("test_ans[%d]: ", i);
+            test_ans[i].print();
             exit(1);
         }
     }
+    printf("Test OK!\n");
 #ifdef DEBUG
     printf("Query: X[%f:%f] x Y[%f:%f].\n", p.x, q.x, q.y, q.y);
     printf("result:\n");
