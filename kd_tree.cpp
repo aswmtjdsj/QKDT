@@ -1,4 +1,4 @@
-#include "common.h"
+
 #include "kd_tree.h"
 
 using namespace std;
@@ -51,7 +51,7 @@ bool KD_Tree::readPoints(const int &mode) {
 }
 
 void KD_Tree::readPointsFromFile() {
-    cout << "FILE_READ MODE" << endl;
+    /*cout << "FILE_READ MODE" << endl;
     if(true) {
         string file_name;
         cout << "Input the name of data file>";
@@ -75,7 +75,7 @@ void KD_Tree::readPointsFromFile() {
             cout << "No such file: " << file_name << endl;
             exit(1);
         }
-    }
+    }*/
 }
 
 void KD_Tree::readPointsByInteractive() {
@@ -103,6 +103,18 @@ void KD_Tree::readPointsFromCMD() {
     }
 }
 
+void KD_Tree::randomPoints(const int &random_total) {
+	number = random_total;
+	point_set.resize(number);
+	std::default_random_engine generator(time(NULL));
+	std::uniform_real_distribution<double> distribution(0.0,1.0);
+	for(int i = 0; i < number; i++) {
+		point_set[i].x = distribution(generator);
+		point_set[i].y = distribution(generator);
+		point_set[i].index = i;
+	}
+}
+
 bool cmp_x(KD_Point<double> p, KD_Point<double> q) {
     return p.x < q.x;
 }
@@ -119,7 +131,8 @@ void KD_Tree::build() {
     root->br = br;
 
     end = clock();
-    cout << "KD-tree build time: " << (end - start) / 1000. << "ms." << endl;
+    cout << "KD-tree build time: " << (end - start) * 1000. / CLOCKS_PER_SEC << "ms." << endl;
+	build_time = (end - start) * 1000. /  CLOCKS_PER_SEC;
 }
 
 Node * KD_Tree::buildTree(int lp, int rp, int depth, KD_Point<double> &left_top, KD_Point<double> & right_bottom) {
@@ -193,8 +206,10 @@ Node * KD_Tree::buildTree(int lp, int rp, int depth, KD_Point<double> &left_top,
              */
             split[0].x = point_set[m].x;
             split[0].y = right_bottom.y;
+			split[0].index = point_set[m].index;
             split[1].x = point_set[m].x;
             split[1].y = left_top.y;
+			split[1].index = point_set[m].index;
         }
         else {
             // y-split
@@ -209,8 +224,10 @@ Node * KD_Tree::buildTree(int lp, int rp, int depth, KD_Point<double> &left_top,
              */
             split[0].x = right_bottom.x;
             split[0].y = point_set[m].y;
+			split[0].index = point_set[m].index;
             split[1].x = left_top.x;
             split[1].y = point_set[m].y;
+			split[1].index = point_set[m].index;
         }
 
         cur->lc = buildTree(lp, m, depth+1, left_top, split[0]);
@@ -249,7 +266,17 @@ void KD_Tree::find_median(const int & lp, const int & rp, const int &index, cons
 #endif
     if(lp < rp) {
         int m = rand()%(rp-lp+1) + lp;
-        swap(point_set[m], point_set[rp]); // random swap
+        //swap(point_set[m], point_set[rp]); // random swap
+		KD_Point<double> temp;
+		temp.x = point_set[m].x;
+		temp.y = point_set[m].y;
+		temp.index = point_set[m].index;
+		point_set[m].x = point_set[rp].x;
+		point_set[m].y = point_set[rp].y;
+		point_set[m].index = point_set[rp].index;
+		point_set[rp].x = temp.x;
+		point_set[rp].y = temp.y;
+		point_set[rp].index = temp.index;
         int j = lp;
         for(int i = lp; i < rp; i++) {
             if((cmp(point_set[i], point_set[rp]))) { // using "<=" cannot deal with points having same coors
@@ -257,7 +284,17 @@ void KD_Tree::find_median(const int & lp, const int & rp, const int &index, cons
                 j++;
             }
         }
-        swap(point_set[j], point_set[rp]);
+        //swap(point_set[j], point_set[rp]);
+		temp.x = point_set[j].x;
+		temp.y = point_set[j].y;
+		temp.index = point_set[j].index;
+		point_set[j].x = point_set[rp].x;
+		point_set[j].y = point_set[rp].y;
+		point_set[j].index = point_set[rp].index;
+		point_set[rp].x = temp.x;
+		point_set[rp].y = temp.y;
+		point_set[rp].index = temp.index;
+
         if(j == index + n/2) { // such procedure doesn't start from current lp, nor 0; it starts from the first lp
             /*printf("FUCKKKKK %d j: %d middle: %d\n", m, j, index + n/2);
             for(int i = index; i < index + n; i++) {
@@ -275,9 +312,12 @@ void KD_Tree::find_median(const int & lp, const int & rp, const int &index, cons
     }
 }
 
-vector< KD_Point<double> > KD_Tree::search(const KD_Point<double> &p, const KD_Point<double> &q) const {
+vector< KD_Point<double> > KD_Tree::search(const KD_Point<double> &p, const KD_Point<double> &q) {
     vector< KD_Point<double> > result;
+    clock_t start = clock(), end;
     searchTree(root, result, p, q);
+    end = clock();
+	query_time = (end - start) * 1000. / CLOCKS_PER_SEC;
     return result;
 }
 
@@ -300,7 +340,7 @@ bool regionIntersect(const KD_Point<double> &p, const KD_Point<double> &q,
     return !(tp.x > tq.x || tp.y > tq.y);
 }
 
-void KD_Tree::searchTree(const Node *cur, std::vector< KD_Point<double> > &ans_set, const KD_Point<double> &p, const KD_Point<double> &q) const {
+void KD_Tree::searchTree(const Node *cur, std::vector< KD_Point<double> > &ans_set, const KD_Point<double> &p, const KD_Point<double> &q) {
     if(cur->size == 1) { // leaf
         if(regionContain(p, q, cur->mark_point, cur->mark_point)) { // test in R
             /*puts("insert");
@@ -334,7 +374,7 @@ void KD_Tree::searchTree(const Node *cur, std::vector< KD_Point<double> > &ans_s
     }
 }
 
-void KD_Tree::reportSubTree(const Node *cur, std::vector< KD_Point<double> > &node_set) const {
+void KD_Tree::reportSubTree(const Node *cur, std::vector< KD_Point<double> > &node_set) {
     /*puts("Report");
     printf("Node Region: X[%f:%f] x Y[%f:%f].\n", cur->tl.x, cur->br.x, cur->tl.y, cur->br.y);
     printf("Depth %d: %s with size: %d ", cur->depth, cur->depth%2==0?"X-split":"Y-split", cur->size);
@@ -343,6 +383,8 @@ void KD_Tree::reportSubTree(const Node *cur, std::vector< KD_Point<double> > &no
     if(cur->size == 1) {
         node_set.push_back(cur->mark_point);
     }
+	else if(cur->size == 0) {
+	}
     else {
         reportSubTree(cur->lc, node_set);
         reportSubTree(cur->rc, node_set);
@@ -356,7 +398,7 @@ void KD_Tree::search_test() {
     }
 
     // query test
-    KD_Point<double> p(1., 1.), q(8., 8.);
+    KD_Point<double> p(1., 1., 0), q(8., 8., 1);
     vector< KD_Point<double> > ans;
 
     clock_t start = clock(), end;
@@ -365,12 +407,12 @@ void KD_Tree::search_test() {
         ans = search(p, q);
     }
     end = clock();
-    cout << "KD-tree query time: " << (end - start) / 1000. << "ms." << endl;
+    cout << "KD-tree query time: " << (end - start) * 1000. / CLOCKS_PER_SEC << "ms." << endl;
 
     // brute force query
     start = clock();
     vector< KD_Point<double> > test_ans;
-    for(int i = 0; i < 1000; i++) {
+    for(int j = 0; j < 1000; j++) {
         vector< KD_Point<double> > test_ans;
         for(int i = 0; i < number; i++) {
             if(p.x <= point_set[i].x  && point_set[i].x <= q.x &&
@@ -380,7 +422,7 @@ void KD_Tree::search_test() {
         }
     }
     end = clock();
-    cout << "brute force query time: " << (end - start) / 1000. << "ms." << endl;
+    cout << "brute force query time: " << (end - start) * 1000. / CLOCKS_PER_SEC << "ms." << endl;
 
     // verification
     int n = static_cast<int>(ans.size()),
@@ -409,6 +451,76 @@ void KD_Tree::search_test() {
         ans[i].print();
     }
 #endif
+}
+
+bool KD_Tree::search_compare(const int div, std::vector<float> &time_compared) {
+
+    // query test
+    KD_Point<double> p(1., 1., 0), q(8., 8., 1);
+    vector< KD_Point<double> > ans;
+
+    clock_t start = clock(), end;
+    // for 1000 times
+	int total = 1000;
+	float step = 0.5 / div;
+    for(int i = 0; i < total /*/ div / div*/; i++) {
+		for(int j = 0; j < 1/*div*/; j++) {
+			for(int k = 0; k < 1/*div*/; k++) {
+				p.x = 0.5 + j * step; p.y = 0.5 + k * step;
+				q.x = 0.5 + (j + 1) * step; p.y = 0.5 + (k + 1) * step;
+				ans = search(p, q);
+			}
+		}
+    }
+    end = clock();
+    //cout << "KD-tree query time: " << (end - start) * 1000. / CLOCKS_PER_SEC << "ms." << endl;
+	time_compared.push_back((end - start) * 1000. / CLOCKS_PER_SEC);
+
+    // brute force query
+    start = clock();
+    vector< KD_Point<double> > test_ans;
+    for(int i = 0; i < total /*/ div / div*/; i++) {
+		for(int j = 0; j < 1/*div*/; j++) {
+			for(int k = 0; k < 1/*div*/; k++) {
+				test_ans.clear();
+				p.x = 0.5 + j * step; p.y = 0.5 + k * step;
+				q.x = 0.5 + (j + 1) * step; p.y = 0.5 + (k + 1) * step;
+					for(int a = 0; a < number; a++) {
+						if(p.x <= point_set[a].x  && point_set[a].x <= q.x &&
+							p.y <= point_set[a].y && point_set[a].y <= q.y) {
+								test_ans.push_back(point_set[a]);
+						}
+					}
+			}
+		}
+    }
+    end = clock();
+    //cout << "brute force query time: " << (end - start) * 1000. / CLOCKS_PER_SEC << "ms." << endl;
+	time_compared.push_back((end - start) * 1000. / CLOCKS_PER_SEC);
+
+    // verification
+    int n = static_cast<int>(ans.size()),
+        m = static_cast<int>(test_ans.size());
+    if(n != m) {
+        printf("Wrong Size: s %d b %d\n", n, m);
+		return false;
+    }
+
+    sort(ans.begin(), ans.end(), cmp_x);
+    sort(test_ans.begin(), test_ans.end(), cmp_x);
+    for(int i = 0; i < n; i++) {
+        if(ans[i].x != test_ans[i].x || ans[i].y != test_ans[i].y) {
+            printf("Wrong!\n");
+            printf("ans[%d]: ", i);
+            ans[i].print();
+            printf("test_ans[%d]: ", i);
+            test_ans[i].print();
+            //exit(1);
+			return false;
+        }
+    }
+	return true;
+    //printf("Test OK!\n");
 }
 
 void KD_Tree::traverse_test(const Node *cur) {
